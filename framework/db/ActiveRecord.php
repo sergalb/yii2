@@ -8,16 +8,16 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace yii\db\ar;
+namespace yii\db;
 
 use yii\base\Model;
 use yii\base\Event;
 use yii\base\ModelEvent;
 use yii\db\Exception;
-use yii\db\dao\Connection;
-use yii\db\dao\TableSchema;
-use yii\db\dao\Query;
-use yii\db\dao\Expression;
+use yii\db\Connection;
+use yii\db\TableSchema;
+use yii\db\Query;
+use yii\db\Expression;
 use yii\util\StringHelper;
 
 /**
@@ -430,8 +430,8 @@ abstract class ActiveRecord extends Model
 	public function addRelatedRecord($relation, $record)
 	{
 		if ($relation->hasMany) {
-			if ($relation->index !== null) {
-				$this->_related[$relation->name][$record->{$relation->index}] = $record;
+			if ($relation->indexBy !== null) {
+				$this->_related[$relation->name][$record->{$relation->indexBy}] = $record;
 			} else {
 				$this->_related[$relation->name][] = $record;
 			}

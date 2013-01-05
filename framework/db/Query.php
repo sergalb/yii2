@@ -1,21 +1,39 @@
 <?php
 /**
- * BaseQuery class file.
+ * Query class file.
  *
  * @link http://www.yiiframework.com/
  * @copyright Copyright &copy; 2008-2012 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
-namespace yii\db\dao;
+namespace yii\db;
 
 /**
- * BaseQuery is the base class that represents a SQL SELECT statement in a DBMS-independent way.
+ * Query represents a SQL statement in a way that is independent of DBMS.
+ *
+ * Query not only can represent a SELECT statement, it can also represent INSERT, UPDATE, DELETE,
+ * and other commonly used DDL statements, such as CREATE TABLE, CREATE INDEX, etc.
+ *
+ * Query provides a set of methods to facilitate the specification of different clauses.
+ * These methods can be chained together. For example,
+ *
+ * ~~~
+ * $query = new Query;
+ * $query->select('id, name')
+ *     ->from('tbl_user')
+ *     ->limit(10);
+ * // build and execute the query
+ * $users = $query->createCommand()->queryAll();
+ * ~~~
+ *
+ * By calling [[createCommand()]], we can get a [[Command]] instance which can be further
+ * used to perform/execute the DB query against a database.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @since 2.0
  */
-class BaseQuery extends \yii\base\Component
+class Query extends \yii\base\Component
 {
 	/**
 	 * @var string|array the columns being selected. This refers to the SELECT clause in a SQL
@@ -78,9 +96,9 @@ class BaseQuery extends \yii\base\Component
 	 */
 	public $having;
 	/**
-	 * @var string|BaseQuery[] the UNION clause(s) in a SQL statement. This can be either a string
+	 * @var string|Query[] the UNION clause(s) in a SQL statement. This can be either a string
 	 * representing a single UNION clause or an array representing multiple UNION clauses.
-	 * Each union clause can be a string or a `BaseQuery` object which refers to the SQL statement.
+	 * Each union clause can be a string or a `Query` object which refers to the SQL statement.
 	 */
 	public $union;
 	/**
@@ -88,6 +106,21 @@ class BaseQuery extends \yii\base\Component
 	 * For example, `array(':name'=>'Dan', ':age'=>31)`.
 	 */
 	public $params;
+
+	/**
+	 * Creates a DB command that can be used to execute this query.
+	 * @param Connection $db the database connection used to generate the SQL statement.
+	 * If this parameter is not given, the `db` application component will be used.
+	 * @return Command the created DB command instance.
+	 */
+	public function createCommand($db = null)
+	{
+		if ($db === null) {
+			$db = \Yii::$application->db;
+		}
+		$sql = $db->getQueryBuilder()->build($this);
+		return $db->createCommand($sql, $this->params);
+	}
 
 	/**
 	 * Sets the SELECT part of the query.
@@ -98,7 +131,7 @@ class BaseQuery extends \yii\base\Component
 	 * (which means the column contains a DB expression).
 	 * @param string $option additional option that should be appended to the 'SELECT' keyword. For example,
 	 * in MySQL, the option 'SQL_CALC_FOUND_ROWS' can be used.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function select($columns, $option = null)
 	{
@@ -110,7 +143,7 @@ class BaseQuery extends \yii\base\Component
 	/**
 	 * Sets the value indicating whether to SELECT DISTINCT or not.
 	 * @param bool $value whether to SELECT DISTINCT or not.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function distinct($value = true)
 	{
@@ -125,7 +158,7 @@ class BaseQuery extends \yii\base\Component
 	 * Table names can contain schema prefixes (e.g. `'public.tbl_user'`) and/or table aliases (e.g. `'tbl_user u'`).
 	 * The method will automatically quote the table names unless it contains some parenthesis
 	 * (which means the table is given as a sub-query or DB expression).
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function from($tables)
 	{
@@ -198,7 +231,7 @@ class BaseQuery extends \yii\base\Component
 	 *
 	 * @param string|array $condition the conditions that should be put in the WHERE part.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see andWhere()
 	 * @see orWhere()
 	 */
@@ -215,7 +248,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $condition the new WHERE condition. Please refer to [[where()]]
 	 * on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see where()
 	 * @see orWhere()
 	 */
@@ -236,7 +269,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $condition the new WHERE condition. Please refer to [[where()]]
 	 * on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see where()
 	 * @see andWhere()
 	 */
@@ -262,7 +295,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $on the join condition that should appear in the ON part.
 	 * Please refer to [[where()]] on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function join($type, $table, $on = '', $params = array())
 	{
@@ -279,7 +312,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $on the join condition that should appear in the ON part.
 	 * Please refer to [[where()]] on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function innerJoin($table, $on = '', $params = array())
 	{
@@ -296,7 +329,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $on the join condition that should appear in the ON part.
 	 * Please refer to [[where()]] on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function leftJoin($table, $on = '', $params = array())
 	{
@@ -313,7 +346,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $on the join condition that should appear in the ON part.
 	 * Please refer to [[where()]] on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function rightJoin($table, $on = '', $params = array())
 	{
@@ -327,7 +360,7 @@ class BaseQuery extends \yii\base\Component
 	 * Columns can be specified in either a string (e.g. "id, name") or an array (e.g. array('id', 'name')).
 	 * The method will automatically quote the column names unless a column contains some parenthesis
 	 * (which means the column contains a DB expression).
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see addGroup()
 	 */
 	public function groupBy($columns)
@@ -342,7 +375,7 @@ class BaseQuery extends \yii\base\Component
 	 * Columns can be specified in either a string (e.g. "id, name") or an array (e.g. array('id', 'name')).
 	 * The method will automatically quote the column names unless a column contains some parenthesis
 	 * (which means the column contains a DB expression).
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see group()
 	 */
 	public function addGroup($columns)
@@ -366,7 +399,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $condition the conditions to be put after HAVING.
 	 * Please refer to [[where()]] on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see andHaving()
 	 * @see orHaving()
 	 */
@@ -383,7 +416,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $condition the new HAVING condition. Please refer to [[where()]]
 	 * on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see having()
 	 * @see orHaving()
 	 */
@@ -404,7 +437,7 @@ class BaseQuery extends \yii\base\Component
 	 * @param string|array $condition the new HAVING condition. Please refer to [[where()]]
 	 * on how to specify this parameter.
 	 * @param array $params the parameters (name=>value) to be bound to the query.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see having()
 	 * @see andHaving()
 	 */
@@ -425,7 +458,7 @@ class BaseQuery extends \yii\base\Component
 	 * Columns can be specified in either a string (e.g. "id ASC, name DESC") or an array (e.g. array('id ASC', 'name DESC')).
 	 * The method will automatically quote the column names unless a column contains some parenthesis
 	 * (which means the column contains a DB expression).
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see addOrder()
 	 */
 	public function orderBy($columns)
@@ -440,7 +473,7 @@ class BaseQuery extends \yii\base\Component
 	 * Columns can be specified in either a string (e.g. "id ASC, name DESC") or an array (e.g. array('id ASC', 'name DESC')).
 	 * The method will automatically quote the column names unless a column contains some parenthesis
 	 * (which means the column contains a DB expression).
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see order()
 	 */
 	public function addOrderBy($columns)
@@ -462,7 +495,7 @@ class BaseQuery extends \yii\base\Component
 	/**
 	 * Sets the LIMIT part of the query.
 	 * @param integer $limit the limit
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function limit($limit)
 	{
@@ -473,7 +506,7 @@ class BaseQuery extends \yii\base\Component
 	/**
 	 * Sets the OFFSET part of the query.
 	 * @param integer $offset the offset
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 */
 	public function offset($offset)
 	{
@@ -483,8 +516,8 @@ class BaseQuery extends \yii\base\Component
 
 	/**
 	 * Appends a SQL statement using UNION operator.
-	 * @param string|BaseQuery $sql the SQL statement to be appended using UNION
-	 * @return BaseQuery the query object itself
+	 * @param string|Query $sql the SQL statement to be appended using UNION
+	 * @return Query the query object itself
 	 */
 	public function union($sql)
 	{
@@ -496,7 +529,7 @@ class BaseQuery extends \yii\base\Component
 	 * Sets the parameters to be bound to the query.
 	 * @param array $params list of query parameter values indexed by parameter placeholders.
 	 * For example, `array(':name'=>'Dan', ':age'=>31)`.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see addParams()
 	 */
 	public function params($params)
@@ -509,7 +542,7 @@ class BaseQuery extends \yii\base\Component
 	 * Adds additional parameters to be bound to the query.
 	 * @param array $params list of query parameter values indexed by parameter placeholders.
 	 * For example, `array(':name'=>'Dan', ':age'=>31)`.
-	 * @return BaseQuery the query object itself
+	 * @return Query the query object itself
 	 * @see params()
 	 */
 	public function addParams($params)
@@ -525,29 +558,6 @@ class BaseQuery extends \yii\base\Component
 						$this->params[$name] = $value;
 					}
 				}
-			}
-		}
-		return $this;
-	}
-
-	/**
-	 * Merges this query with another one.
-	 * If a property of `$query` is not null, it will be used to overwrite
-	 * the corresponding property of `$this`.
-	 * @param BaseQuery $query the new query to be merged with this query.
-	 * @return BaseQuery the query object itself
-	 */
-	public function mergeWith(BaseQuery $query)
-	{
-		$properties = array(
-			'select', 'selectOption', 'distinct', 'from',
-			'where', 'limit', 'offset', 'orderBy', 'groupBy',
-			'join', 'having', 'union', 'params',
-		);
-		// todo: incorrect, do we need it? should we provide a configure() method instead?
-		foreach ($properties as $name => $value) {
-			if ($value !== null) {
-				$this->$name = $value;
 			}
 		}
 		return $this;
