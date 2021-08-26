@@ -9,7 +9,7 @@
 
 namespace yiiunit\data\ar;
 
-use yii\db\Connection;
+use yii\db\dao\Connection;
 
 /**
  * ActiveRecord is ...
@@ -17,7 +17,7 @@ use yii\db\Connection;
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @since 2.0
  */
-class ActiveRecord extends \yii\db\ActiveRecord
+class ActiveRecord extends \yii\db\ar\ActiveRecord
 {
 	public static $db;
 

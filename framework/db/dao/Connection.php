@@ -7,7 +7,7 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace yii\db;
+namespace yii\db\dao;
 
 use yii\db\Exception;
 
@@ -25,7 +25,7 @@ use yii\db\Exception;
  * the DB connection:
  *
  * ~~~
- * $connection = new \yii\db\Connection(array(
+ * $connection = new \yii\db\dao\Connection(array(
  *     'dsn' => $dsn,
  *     'username' => $username,
  *     'password' => $password,
@@ -76,7 +76,7 @@ use yii\db\Exception;
  * array(
  *	 'components' => array(
  *		 'db' => array(
- *			 'class' => '\yii\db\Connection',
+ *			 'class' => '\yii\db\dao\Connection',
  *			 'dsn' => 'mysql:host=127.0.0.1;dbname=demo',
  *			 'username' => 'root',
  *			 'password' => '',
@@ -130,63 +130,62 @@ class Connection extends \yii\base\ApplicationComponent
 	 */
 	public $pdo;
 	/**
-	 * @var boolean whether to enable schema caching.
-	 * Note that in order to enable truly schema caching, a valid cache component as specified
-	 * by [[schemaCacheID]] must be enabled and [[schemaCacheEnabled]] must be set true.
-	 * @see schemaCacheDuration
-	 * @see schemaCacheExclude
+	 * @var integer number of seconds that table metadata can remain valid in cache.
+	 * Defaults to -1, meaning schema caching is disabled.
+	 * Use 0 to indicate that the cached data will never expire.
+	 *
+	 * Note that in order to enable schema caching, a valid cache component as specified
+	 * by [[schemaCacheID]] must be enabled.
+	 * @see schemaCachingExclude
 	 * @see schemaCacheID
 	 */
-	public $enableSchemaCache = false;
-	/**
-	 * @var integer number of seconds that table metadata can remain valid in cache.
-	 * Use 0 to indicate that the cached data will never expire.
-	 * @see enableSchemaCache
-	 */
-	public $schemaCacheDuration = 3600;
+	public $schemaCachingDuration = -1;
 	/**
 	 * @var array list of tables whose metadata should NOT be cached. Defaults to empty array.
 	 * The table names may contain schema prefix, if any. Do not quote the table names.
-	 * @see enableSchemaCache
+	 * @see schemaCachingDuration
 	 */
-	public $schemaCacheExclude = array();
+	public $schemaCachingExclude = array();
 	/**
 	 * @var string the ID of the cache application component that is used to cache the table metadata.
 	 * Defaults to 'cache'.
-	 * @see enableSchemaCache
+	 * @see schemaCachingDuration
 	 */
 	public $schemaCacheID = 'cache';
 	/**
-	 * @var boolean whether to enable query caching.
-	 * Note that in order to enable query caching, a valid cache component as specified
-	 * by [[queryCacheID]] must be enabled and [[queryCacheEnabled]] must be set true.
-	 *
-	 * Methods [[beginCache()]] and [[endCache()]] can be used as shortcuts to turn on
-	 * and off query caching on the fly.
-	 * @see queryCacheDuration
-	 * @see queryCacheID
-	 * @see queryCacheDependency
-	 * @see beginCache()
-	 * @see endCache()
-	 */
-	public $enableQueryCache = false;
-	/**
 	 * @var integer number of seconds that query results can remain valid in cache.
-	 * Defaults to 3600, meaning one hour.
+	 * Defaults to -1, meaning query caching is disabled.
 	 * Use 0 to indicate that the cached data will never expire.
-	 * @see enableQueryCache
+	 *
+	 * Note that in order to enable query caching, a valid cache component as specified
+	 * by [[queryCacheID]] must be enabled.
+	 *
+	 * The method [[cache()]] is provided as a convenient way of setting this property
+	 * and [[queryCachingDependency]] on the fly.
+	 *
+	 * @see cache
+	 * @see queryCachingDependency
+	 * @see queryCacheID
 	 */
-	public $queryCacheDuration = 3600;
+	public $queryCachingDuration = -1;
 	/**
 	 * @var \yii\caching\Dependency the dependency that will be used when saving query results into cache.
 	 * Defaults to null, meaning no dependency.
-	 * @see enableQueryCache
+	 * @see queryCachingDuration
 	 */
-	public $queryCacheDependency;
+	public $queryCachingDependency;
+	/**
+	 * @var integer the number of SQL statements that need to be cached when they are executed next.
+	 * Defaults to 0, meaning the query result of the next SQL statement will NOT be cached.
+	 * Note that each time after executing a SQL statement (whether executed on DB server or fetched from
+	 * query cache), this property will be reduced by 1 until 0.
+	 * @see queryCachingDuration
+	 */
+	public $queryCachingCount = 0;
 	/**
 	 * @var string the ID of the cache application component that is used for query caching.
 	 * Defaults to 'cache'.
-	 * @see enableQueryCache
+	 * @see queryCachingDuration
 	 */
 	public $queryCacheID = 'cache';
 	/**
@@ -239,15 +238,15 @@ class Connection extends \yii\base\ApplicationComponent
 	 * [[Driver]] class to support DBMS that is not supported by Yii.
 	 */
 	public $driverMap = array(
-		'pgsql' => 'yii\db\pgsql\Driver', // PostgreSQL
-		'mysqli' => 'yii\db\mysql\Driver', // MySQL
-		'mysql' => 'yii\db\mysql\Driver', // MySQL
-		'sqlite' => 'yii\db\sqlite\Driver', // sqlite 3
-		'sqlite2' => 'yii\db\sqlite\Driver', // sqlite 2
+		'pgsql' => 'yii\db\dao\pgsql\Driver', // PostgreSQL
+		'mysqli' => 'yii\db\dao\mysql\Driver', // MySQL
+		'mysql' => 'yii\db\dao\mysql\Driver', // MySQL
+		'sqlite' => 'yii\db\dao\sqlite\Driver', // sqlite 3
+		'sqlite2' => 'yii\db\dao\sqlite\Driver', // sqlite 2
 		'mssql' => 'yi\db\dao\mssql\Driver', // Mssql driver on windows hosts
-		'dblib' => 'yii\db\mssql\Driver', // dblib drivers on linux (and maybe others os) hosts
-		'sqlsrv' => 'yii\db\mssql\Driver', // Mssql
-		'oci' => 'yii\db\oci\Driver', // Oracle driver
+		'dblib' => 'yii\db\dao\mssql\Driver', // dblib drivers on linux (and maybe others os) hosts
+		'sqlsrv' => 'yii\db\dao\mssql\Driver', // Mssql
+		'oci' => 'yii\db\dao\oci\Driver', // Oracle driver
 	);
 	/**
 	 * @var Transaction the currently active transaction
@@ -298,29 +297,24 @@ class Connection extends \yii\base\ApplicationComponent
 	}
 
 	/**
-	 * Turns on query caching.
-	 * This method is provided as a shortcut to setting two properties that are related
-	 * with query caching: [[queryCacheDuration]] and [[queryCacheDependency]].
+	 * Sets the parameters about query caching.
+	 * This method is provided as a shortcut to setting three properties that are related
+	 * with query caching: [[queryCachingDuration]], [[queryCachingDependency]] and
+	 * [[queryCachingCount]].
 	 * @param integer $duration the number of seconds that query results may remain valid in cache.
-	 * See [[queryCacheDuration]] for more details.
+	 * See [[queryCachingDuration]] for more details.
 	 * @param \yii\caching\Dependency $dependency the dependency for the cached query result.
-	 * See [[queryCacheDependency]] for more details.
+	 * See [[queryCachingDependency]] for more details.
+	 * @param integer $queryCount the number of SQL queries that need to be cached after calling this method.
+	 * See [[queryCachingCount]] for more details.
+	 * @return Connection the connection instance itself.
 	 */
-	public function beginCache($duration = null, $dependency = null)
+	public function cache($duration = 300, $dependency = null, $queryCount = 1)
 	{
-		$this->enableQueryCache = true;
-		if ($duration !== null) {
-			$this->queryCacheDuration = $duration;
-		}
-		$this->queryCacheDependency = $dependency;
-	}
-
-	/**
-	 * Turns off query caching.
-	 */
-	public function endCache()
-	{
-		$this->enableQueryCache = false;
+		$this->queryCachingDuration = $duration;
+		$this->queryCachingDependency = $dependency;
+		$this->queryCachingCount = $queryCount;
+		return $this;
 	}
 
 	/**
@@ -618,7 +612,7 @@ class Connection extends \yii\base\ApplicationComponent
 	public function getStats()
 	{
 		$logger = \Yii::getLogger();
-		$timings = $logger->getProfiling(array('yii\db\Command::query', 'yii\db\Command::execute'));
+		$timings = $logger->getProfiling(array('yii\db\dao\Command::query', 'yii\db\dao\Command::execute'));
 		$count = count($timings);
 		$time = 0;
 		foreach ($timings as $timing) {

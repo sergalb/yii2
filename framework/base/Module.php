@@ -501,7 +501,7 @@ abstract class Module extends Component
 	 * ~~~
 	 * array(
 	 *     'db' => array(
-	 *         'class' => 'yii\db\Connection',
+	 *         'class' => 'yii\db\dao\Connection',
 	 *         'dsn' => 'sqlite:path/to/file.db',
 	 *     ),
 	 *     'cache' => array(

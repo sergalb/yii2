@@ -7,7 +7,7 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace yii\db;
+namespace yii\db\dao;
 
 use yii\db\Exception;
 

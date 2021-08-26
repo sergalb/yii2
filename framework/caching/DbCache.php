@@ -10,8 +10,8 @@
 namespace yii\caching;
 
 use yii\base\Exception;
-use yii\db\Connection;
-use yii\db\Query;
+use yii\db\dao\Connection;
+use yii\db\dao\Query;
 
 /**
  * DbCache implements a cache application component by storing cached data in a database.
@@ -106,11 +106,12 @@ class DbCache extends Cache
 			->from($this->cacheTableName)
 			->where('id = :id AND (expire = 0 OR expire > :time)', array(':id' => $key, ':time' => time()));
 		$db = $this->getDbConnection();
-		if ($db->enableQueryCache) {
+		if ($db->queryCachingDuration >= 0) {
 			// temporarily disable and re-enable query caching
-			$db->enableQueryCache = false;
+			$duration = $db->queryCachingDuration;
+			$db->queryCachingDuration = -1;
 			$result = $query->createCommand($db)->queryScalar();
-			$db->enableQueryCache = true;
+			$db->queryCachingDuration = $duration;
 			return $result;
 		} else {
 			return $query->createCommand($db)->queryScalar();
@@ -134,10 +135,11 @@ class DbCache extends Cache
 			->andWhere("expire = 0 OR expire > " . time() . ")");
 
 		$db = $this->getDbConnection();
-		if ($db->enableQueryCache) {
-			$db->enableQueryCache = false;
+		if ($db->queryCachingDuration >= 0) {
+			$duration = $db->queryCachingDuration;
+			$db->queryCachingDuration = -1;
 			$rows = $query->createCommand($db)->queryAll();
-			$db->enableQueryCache = true;
+			$db->queryCachingDuration = $duration;
 		} else {
 			$rows = $query->createCommand($db)->queryAll();
 		}

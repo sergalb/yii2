@@ -8,16 +8,17 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace yii\db;
+namespace yii\db\ar;
 
-use yii\db\Connection;
-use yii\db\Command;
-use yii\db\QueryBuilder;
+use yii\db\dao\Connection;
+use yii\db\dao\Command;
+use yii\db\dao\QueryBuilder;
+use yii\db\dao\BaseQuery;
 use yii\base\VectorIterator;
-use yii\db\Expression;
+use yii\db\dao\Expression;
 use yii\db\Exception;
 
-class ActiveQuery extends Query
+class ActiveQuery extends BaseQuery
 {
 	/**
 	 * @var string the name of the ActiveRecord class.
@@ -31,7 +32,7 @@ class ActiveQuery extends Query
 	 * @var string the name of the column by which the query result should be indexed.
 	 * This is only used when the query result is returned as an array when calling [[all()]].
 	 */
-	public $indexBy;
+	public $index;
 	/**
 	 * @var boolean whether to return each record as an array. If false (default), an object
 	 * of [[modelClass]] will be created to represent each record.
@@ -124,17 +125,13 @@ class ActiveQuery extends Query
 
 	/**
 	 * Creates a DB command that can be used to execute this query.
-	 * @param Connection $db the DB connection used to create the DB command.
-	 * If null, the DB connection returned by [[modelClass]] will be used.
 	 * @return Command the created DB command instance.
 	 */
-	public function createCommand($db = null)
+	public function createCommand()
 	{
 		/** @var $modelClass ActiveRecord */
 		$modelClass = $this->modelClass;
-		if ($db === null) {
-			$db = $modelClass::getDbConnection();
-		}
+		$db = $modelClass::getDbConnection();
 		if ($this->sql === null) {
 			if ($this->from === null) {
 				$tableName = $modelClass::tableName();
@@ -173,9 +170,9 @@ class ActiveQuery extends Query
 		return $this;
 	}
 
-	public function indexBy($column)
+	public function index($column)
 	{
-		$this->indexBy = $column;
+		$this->index = $column;
 		return $this;
 	}
 
@@ -189,88 +186,60 @@ class ActiveQuery extends Query
 	{
 		$models = array();
 		if ($this->asArray) {
-			if ($this->indexBy === null) {
+			if ($this->index === null) {
 				return $rows;
 			}
 			foreach ($rows as $row) {
-				$models[$row[$this->indexBy]] = $row;
+				$models[$row[$this->index]] = $row;
 			}
 		} else {
 			/** @var $class ActiveRecord */
 			$class = $this->modelClass;
-			if ($this->indexBy === null) {
+			if ($this->index === null) {
 				foreach ($rows as $row) {
 					$models[] = $class::create($row);
 				}
 			} else {
 				foreach ($rows as $row) {
 					$model = $class::create($row);
-					$models[$model->{$this->indexBy}] = $model;
+					$models[$model->{$this->index}] = $model;
 				}
 			}
 		}
 		return $models;
 	}
 
-	protected function fetchRelatedModels(&$models, $with)
+	protected function fetchRelatedModels(&$models, $relations)
 	{
+		// todo: normalize $relations
 		$primaryModel = new $this->modelClass;
-		$relations = $this->normalizeRelations($primaryModel, $with);
-		foreach ($relations as $name => $relation) {
+		foreach ($relations as $name => $properties) {
+			if (is_integer($name)) {
+				$name = $properties;
+				$properties = array();
+			}
+
+			if (!method_exists($primaryModel, $name)) {
+				throw new Exception("Unknown relation: $name");
+			}
+			/** @var $relation ActiveRelation */
+			$relation = $primaryModel->$name();
+			$relation->primaryModel = null;
+			foreach ($properties as $p => $v) {
+				$relation->$p = $v;
+			}
 			if ($relation->asArray === null) {
 				// inherit asArray from primary query
 				$relation->asArray = $this->asArray;
 			}
-			$relation->findWith($name, $models);
-		}
-	}
-
-	/**
-	 * @param ActiveRecord $model
-	 * @param array $with
-	 * @return ActiveRelation[]
-	 * @throws \yii\db\Exception
-	 */
-	protected function normalizeRelations($model, $with)
-	{
-		$relations = array();
-		foreach ($with as $name => $options) {
-			if (is_integer($name)) {
-				$name = $options;
-				$options = array();
-			}
-			if (($pos = strpos($name, '.')) !== false) {
-				// with sub-relations
-				$childName = substr($name, $pos + 1);
-				$name = substr($name, 0, $pos);
+			if ($relation->via !== null) {
+				$viaName = $relation->via;
+				$viaQuery = $primaryModel->$viaName();
+				$viaQuery->primaryModel = null;
+				$relation->findWith($name, $models, $viaQuery);
 			} else {
-				$childName = null;
-			}
-
-			if (!isset($relations[$name])) {
-				if (!method_exists($model, $name)) {
-					throw new Exception("Unknown relation: $name");
-				}
-				/** @var $relation ActiveRelation */
-				$relation = $model->$name();
-				$relation->primaryModel = null;
-				$relations[$name] = $relation;
-			} else {
-				$relation = $relations[$name];
-			}
-
-			if (isset($childName)) {
-				if (isset($relation->with[$childName])) {
-					$relation->with[$childName] = array_merge($relation->with, $options);
-				} else {
-					$relation->with[$childName] = $options;
-				}
-			} else {
-				foreach ($options as $p => $v) {
-					$relation->$p = $v;
-				}
+				$relation->findWith($name, $models);
 			}
 		}
-		return $relations;
 	}
 }

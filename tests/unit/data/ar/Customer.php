@@ -1,7 +1,7 @@
 <?php
 
 namespace yiiunit\data\ar;
-use yii\db\ActiveQuery;
+use yii\db\ar\ActiveQuery;
 
 class Customer extends ActiveRecord
 {

@@ -10,8 +10,8 @@
 namespace yii\caching;
 
 use yii\base\Exception;
-use yii\db\Connection;
-use yii\db\Query;
+use yii\db\dao\Connection;
+use yii\db\dao\Query;
 
 /**
  * DbDependency represents a dependency based on the query result of a SQL statement.
@@ -69,11 +69,12 @@ class DbDependency extends Dependency
 	{
 		$db = $this->getDbConnection();
 		$command = $this->query->createCommand($db);
-		if ($db->enableQueryCache) {
+		if ($db->queryCachingDuration >= 0) {
 			// temporarily disable and re-enable query caching
-			$db->enableQueryCache = false;
+			$duration = $db->queryCachingDuration;
+			$db->queryCachingDuration = -1;
 			$result = $command->queryRow();
-			$db->enableQueryCache = true;
+			$db->queryCachingDuration = $duration;
 		} else {
 			$result = $command->queryRow();
 		}

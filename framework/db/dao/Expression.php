@@ -7,7 +7,7 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace yii\db;
+namespace yii\db\dao;
 
 /**
  * Expression represents a DB expression that does not need escaping or quoting.
