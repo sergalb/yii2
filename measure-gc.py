@@ -8,7 +8,7 @@ def measureDockerRun(imageTag):
     os.system("docker run  --rm " +
               "-v $(pwd):/data/project " +
               "-v $(pwd)/out:/data/results " +
-              "-e _JAVA_OPTIONS=-Xmx512mb " +
+              "-e _JAVA_OPTIONS=-Xmx512m " +
               imageTag
               )
     end = time.time()
