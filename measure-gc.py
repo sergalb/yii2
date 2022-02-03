@@ -8,6 +8,7 @@ def measureDockerRun(imageTag):
     os.system("docker run  --rm " +
               "-v $(pwd):/data/project " +
               "-v $(pwd)/out:/data/results " +
+              "-e _JAVA_OPTIONS=-Xmx512mb "
               imageTag
               )
     end = time.time()
@@ -26,7 +27,6 @@ def measureGc(gcImageNumber):
 
 def printResults(resultsName, results):
     print(resultsName, statistics.mean(results), statistics.stdev(results), results)
-
 
 parallelResults = measureGc("20978.2565")
 g1Results = measureGc("20978.2567")
